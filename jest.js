@@ -29,9 +29,12 @@ var result = (function (global) {
     var SINGLE_NEWLINE = ' • ';
     var DID_NOT_THROW = 'Received function did not throw';
 
-    
+
     /*********************************
-     * Helper Functions
+     * Polyfills
+     * 
+     * note - these are not true polyfills as ThingWorx version 8.5 uses Rhino 1.7.11 which does not allow modifying global built-in prototype objects
+     * https://support.ptc.com/help/thingworx_hc/thingworx_8_hc/en/index.html#page/ThingWorx%2FHelp%2FComposer%2FThings%2FThingServices%2FRhinoJavaScriptEngine.html
      ********************************/
 
     /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is */
@@ -48,6 +51,26 @@ var result = (function (global) {
         // isNaN("foo") => true
         return x !== x && y !== y;
     }
+
+
+    /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes */
+    function stringIncludes(string, search, start) {
+        if (search instanceof RegExp) {
+            throw new Error('search argument to String.prototype.includes must not be a RegExp');
+        }
+
+        if (start === undefined) {
+            start = 0;
+        }
+
+        return string.indexOf(search, start) !== -1;
+    }
+
+
+    
+    /*********************************
+     * Helper Functions
+     ********************************/
 
 
     function stringify(o) {
@@ -102,9 +125,6 @@ var result = (function (global) {
         }
 
         var allKeys = getAllKeys(obj);
-        // var allKeys = (function (o) {
-            
-        // })(obj);
 
         // TODO: May need to add custom keys for ThingWorx internal objects (e.g. ThingworxInfoTableObject)
         // throw new Error(Object.prototype.toString.call(obj));
@@ -351,20 +371,6 @@ var result = (function (global) {
     }
 
 
-    /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes */
-    function stringIncludes(string, search, start) {
-        if (search instanceof RegExp) {
-            throw new Error('search argument to String.prototype.includes must not be a RegExp');
-        }
-
-        if (start === undefined) {
-            start = 0;
-        }
-
-        return string.indexOf(search, start) !== -1;
-    }
-
-
     /** https://github.com/facebook/jest/blob/e3f4c65140f08a2ec81e5a8260704c1d201e33c1/packages/expect/src/print.ts#L64 */
     function printCloseTo(receivedDiff, expectedDiff, precision, isNot) {
         var receivedDiffString = stringify(receivedDiff);
@@ -507,11 +513,13 @@ var result = (function (global) {
     }
 
 
+    /** https://github.com/facebook/jest/blob/0fd5e3cdd80a866623f1f0cf2385fef38015d51f/packages/expect/src/index.ts#L139 */
     function getMessage(message/*?: () => string*/) {
         return (message && message()) || 'No message was specified for this matcher.';
     }
 
 
+    /** https://github.com/facebook/jest/blob/0fd5e3cdd80a866623f1f0cf2385fef38015d51f/packages/expect/src/index.ts#L357 */
     function _validateResult(result/*: any*/) {
         if (
             typeof result !== 'object' ||
@@ -530,7 +538,7 @@ var result = (function (global) {
         }
     }
 
-
+    /** https://github.com/facebook/jest/blob/0fd5e3cdd80a866623f1f0cf2385fef38015d51f/packages/expect/src/index.ts#L233 */
     function makeThrowingMatcher(
         matcherName/*: string*/,
         matcher/*: RawMatcherFn*/,
@@ -628,7 +636,6 @@ var result = (function (global) {
                 var expected = args[0];
                 var restOfArgs = Array.prototype.slice.call(args, 1);
                 potentialResult = matcher(matcherContext, actual, expected, /*...*/restOfArgs);
-                //                potentialResult = matcher.call(matcherContext, actual, expected, /*...*/restOfArgs);
 
                 var syncResult = potentialResult/* as SyncExpectationResult*/;
 
