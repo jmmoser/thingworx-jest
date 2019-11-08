@@ -1,11 +1,11 @@
-# Jest JavaScript Testing Framework for ThingWorx services
+# Jest JavaScript Testing Framework for ThingWorx Services
 
 ### Installation
-1. Create a generic thing (e.g. _JestFramework_)
+1. Create a generic thing and give it a name (e.g. _JestFramework_)
 2. Add a new service on the thing
 3. Give the service a name (e.g. _importScript_)
 3. Set the output of the service to STRING data type
-4. Copy the contents of *jest.js* and paste into the service script text editor
+4. Copy the contents of _jest.js_ and paste into the service script text editor
 5. Save the service
 6. Save the thing
 
@@ -17,7 +17,7 @@ After installation, you may reuse this script in any service on any thing/templa
 eval(Things['JestFramework'].importScript())(this); // jshint ignore:line
 ```
 
-*Note:* I typically create a separate service on each of my things/templates/shapes called *__UNIT_TESTS__* which runs all of the unit tests for the entity's services.
+*Note:* I typically create a separate service on each of my things/templates/shapes called *_UNIT_TESTS_* which runs all of the unit tests for the entity's services.
 
 Add your unit tests after the snippet:
 ```javascript
