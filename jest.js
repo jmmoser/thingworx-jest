@@ -37,8 +37,32 @@ var result = (function (global) {
      * https://support.ptc.com/help/thingworx_hc/thingworx_8_hc/en/index.html#page/ThingWorx%2FHelp%2FComposer%2FThings%2FThingServices%2FRhinoJavaScriptEngine.html
      ********************************/
 
+    /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER */
+    Number_MAX_SAFE_INTEGER = 9007199254740991; // Math.pow(2, 53) - 1;
+
+    
+    /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN */
+    function Number_isNaN(input) {
+        return typeof input === 'number' && input !== input;
+    }
+
+
+    /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isInteger */
+    function Number_isInteger(value) {
+        return typeof value === 'number' &&
+            isFinite(value) &&
+            Math.floor(value) === value;
+    }
+
+
+    /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger */
+    function Number_isSafeInteger(value) {
+        return Number_isInteger(value) && Math.abs(value) <= Number_MAX_SAFE_INTEGER;
+    }
+
+
     /** https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is */
-    function ObjectIs(x, y) {
+    function Object_is(x, y) {
         if (x === y) {
             // 0 === -0, but they are not identical
             return x !== 0 || 1 / x === 1 / y;
@@ -67,20 +91,24 @@ var result = (function (global) {
     }
 
 
-    
+
     /*********************************
      * Helper Functions
      ********************************/
 
 
     function stringify(o) {
-        if (o !== undefined && o !== null) {
-            if (typeof o.ToJSON === 'function') {
-                /** InfoTable */
-                return o.ToJSON();
-            } else if (typeof o === 'object') {
-                return JSON.stringify(o);
+        try {
+            if (o !== undefined && o !== null) {
+                if (typeof o.ToJSON === 'function') {
+                    /** InfoTable */
+                    return o.ToJSON();
+                } else if (typeof o === 'object') {
+                    return JSON.stringify(o);
+                }
             }
+        } catch (err) {
+            //
         }
         return '' + o;
     }
@@ -154,7 +182,7 @@ var result = (function (global) {
             return a.message == b.message;
         }
 
-        if (ObjectIs(a, b)) {
+        if (Object_is(a, b)) {
             return true;
         }
 
@@ -174,7 +202,7 @@ var result = (function (global) {
                 // equivalent to `new String("5")`.
                 return a == String(b);
             case '[object Number]':
-                return ObjectIs(Number(a), Number(b));
+                return Object_is(Number(a), Number(b));
             case '[object Date]':
             case '[object Boolean]':
                 // Coerce dates and booleans to numeric primitive values. Dates are compared by their
@@ -379,10 +407,10 @@ var result = (function (global) {
             : 0 <= precision && precision <= 20
                 ? expectedDiff.toFixed(precision + 1)
                 : stringify(expectedDiff);
-        
+
         return (
             'Expected precision: ' + stringify(precision) + SINGLE_NEWLINE +
-            'Expected difference: ' + (isNot ? 'not ': '') + '< ' + expectedDiffString + SINGLE_NEWLINE +
+            'Expected difference: ' + (isNot ? 'not ' : '') + '< ' + expectedDiffString + SINGLE_NEWLINE +
             'Received difference: ' + receivedDiffString
         );
     }
@@ -404,8 +432,8 @@ var result = (function (global) {
     function printWithType(name, value, printerFunc) {
         var type = getType(value);
         var hasType = type !== 'null' && type !== 'undefined'
-                        ? name + ' has type: ' + type + SINGLE_NEWLINE
-                        : '';
+            ? name + ' has type: ' + type + SINGLE_NEWLINE
+            : '';
         return hasType + name + ' has value: ' + (typeof printerFunc === 'function' ? printerFunc(value) : stringify(value));
     }
 
@@ -420,9 +448,9 @@ var result = (function (global) {
     function matcherErrorMessage(hint, generic, specific) {
         return (
             hint +
-            DOUBLE_NEWLINE +
-            'Matcher error: ' + generic +
-            typeof specific === 'string' ? DOUBLE_NEWLINE + specific : ''
+                DOUBLE_NEWLINE +
+                'Matcher error: ' + generic +
+                typeof specific === 'string' ? DOUBLE_NEWLINE + specific : ''
         );
     }
 
@@ -662,7 +690,7 @@ var result = (function (global) {
         };
     }
 
-    
+
 
     /*********************************
      * Matchers
@@ -676,7 +704,7 @@ var result = (function (global) {
                 isNot: state.isNot,
                 promise: state.promise
             };
-            var pass = ObjectIs(received, expected);
+            var pass = Object_is(received, expected);
 
             return MatcherResult(pass, function () {
                 if (pass) {
@@ -832,7 +860,7 @@ var result = (function (global) {
         },
 
         /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/matchers.ts#L280 */
-        toBeInstanceOf: function(state, received, expected) {
+        toBeInstanceOf: function (state, received, expected) {
             var options = {
                 isNot: state.isNot,
                 promise: state.promise
@@ -850,14 +878,14 @@ var result = (function (global) {
 
             var pass = received instanceof expected;
 
-            return MatcherResult(pass, function() {
+            return MatcherResult(pass, function () {
                 if (pass) {
                     return (
                         matcherHint(state.name, undefined, undefined, options) +
-                        DOUBLE_NEWLINE +
-                        printConstructorName('Expected constructor', expected, true, true) +
-                        DOUBLE_NEWLINE +
-                        received.constructor !== expected
+                            DOUBLE_NEWLINE +
+                            printConstructorName('Expected constructor', expected, true, true) +
+                            DOUBLE_NEWLINE +
+                            received.constructor !== expected
                             ? printConstructorName('Received constructor', received.constructor, true, true)
                             : ''
                     );
@@ -890,13 +918,13 @@ var result = (function (global) {
 
             var pass = received < expected;
 
-            return MatcherResult(pass, function() {
+            return MatcherResult(pass, function () {
                 return (
                     matcherHint(state.name, undefined, undefined, options) +
                     DOUBLE_NEWLINE +
-                    'Expected: ' + (isNot ? 'not': ' ') + ' < ' + expected +
+                    'Expected: ' + (isNot ? 'not' : ' ') + ' < ' + expected +
                     DOUBLE_NEWLINE +
-                    'Received: ' + (isNot ? 'not': ' ') + received
+                    'Received: ' + (isNot ? 'not' : ' ') + received
                 );
             });
         },
@@ -934,7 +962,7 @@ var result = (function (global) {
 
             ensureNoExpected(expected, state.name, options);
 
-            var pass = Number.isNaN(received);
+            var pass = Number_isNaN(received);
 
             return MatcherResult(pass, function () {
                 return (
@@ -1025,7 +1053,7 @@ var result = (function (global) {
 
             var pass = equals(received, expected, false);
 
-            return MatcherResult(pass, function() {
+            return MatcherResult(pass, function () {
                 var receivedStr = stringify(received);
                 var expectedStr = stringify(expected);
 
@@ -1044,7 +1072,7 @@ var result = (function (global) {
                         DOUBLE_NEWLINE +
                         'Expected: ' + expectedStr
                     );
-                    
+
                 }
             });
         },
@@ -1069,7 +1097,7 @@ var result = (function (global) {
 
             /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/jest-matcher-utils/src/index.ts#L210 */
             /** ensureExpectedIsNonNegativeInteger() */
-            if (typeof expected !== 'number' || !Number.isSafeInteger(expected) || expected < 0) {
+            if (typeof expected !== 'number' || !Number_isSafeInteger(expected) || expected < 0) {
                 throw new Error(
                     matcherErrorMessage(
                         matcherHint(state.name, undefined, undefined, options),
@@ -1081,13 +1109,13 @@ var result = (function (global) {
 
             var pass = received.length === expected;
 
-            return MatcherResult(pass, function() {
+            return MatcherResult(pass, function () {
                 return (
                     matcherHint(state.name, undefined, undefined, options) +
                     DOUBLE_NEWLINE +
                     'Expected length ' + (isNot ? 'not ' : '') + expected +
                     DOUBLE_NEWLINE +
-                    (isNot 
+                    (isNot
                         ? ''
                         : 'Received length ' + received.length) +
                     DOUBLE_NEWLINE +
@@ -1160,7 +1188,7 @@ var result = (function (global) {
              * also matches absence of a property with the key path.
              */
             if (pass && !hasCompletePath) {
-                return MatcherResult(pass, function() {
+                return MatcherResult(pass, function () {
                     return (
                         matcherHint(state.name, undefined, expectedArgument, options) +
                         DOUBLE_NEWLINE +
@@ -1181,10 +1209,10 @@ var result = (function (global) {
                 });
             }
 
-            return MatcherResult(pass, function() {
+            return MatcherResult(pass, function () {
                 if (pass) {
                     return (
-                        matcherHint(state.name, undefined, expectedArgument, options) + 
+                        matcherHint(state.name, undefined, expectedArgument, options) +
                         DOUBLE_NEWLINE +
                         (hasValue ?
                             'Expected path: ' + expectedPath + DOUBLE_NEWLINE +
@@ -1212,7 +1240,7 @@ var result = (function (global) {
         },
 
         /** https://github.com/facebook/jest/blob/0fd5e3cdd80a866623f1f0cf2385fef38015d51f/packages/expect/src/matchers.ts#L803 */
-        toMatch: function(state, received, expected) {
+        toMatch: function (state, received, expected) {
             var options = {
                 isNot: state.isNot,
                 promise: state.promise
@@ -1239,10 +1267,10 @@ var result = (function (global) {
             }
 
             var pass = typeof expected === 'string'
-                        ? stringIncludes(received, expected)
-                        : expected.test(received);
+                ? stringIncludes(received, expected)
+                : expected.test(received);
 
-            return MatcherResult(pass, function() {
+            return MatcherResult(pass, function () {
                 var labelExpected = 'Expected ' + (typeof expected === 'string' ? 'substring' : 'pattern');
 
                 if (pass) {
@@ -1269,7 +1297,7 @@ var result = (function (global) {
     function toThrowExpectedNotDefined(matcherName, options, thrown) {
         var pass = thrown !== null;
 
-        return MatcherResult(pass, function() {
+        return MatcherResult(pass, function () {
             if (pass) {
                 return (
                     matcherHint(matcherName, undefined, '', options) +
@@ -1290,14 +1318,14 @@ var result = (function (global) {
     function toThrowExpectedStringResult(matcherName, options, thrown, expected) {
         var pass = thrown !== null && stringIncludes(thrown.message, expected);
 
-        return MatcherResult(pass, function() {
+        return MatcherResult(pass, function () {
             if (pass) {
                 return (
                     matcherHint(matcherName, undefined, undefined, options) +
-                    DOUBLE_NEWLINE +
-                    'Expected substring: not ' + expected +
-                    DOUBLE_NEWLINE +
-                    !!thrown.message ?
+                        DOUBLE_NEWLINE +
+                        'Expected substring: not ' + expected +
+                        DOUBLE_NEWLINE +
+                        !!thrown.message ?
                         'Received message: ' + thrown.message :
                         'Received value: ' + thrown.value || thrown
                 );
@@ -1320,7 +1348,7 @@ var result = (function (global) {
     function toThrowExpectedRegExp(matcherName, options, thrown, expected) {
         var pass = thrown !== null && expected.test(thrown.message);
 
-        return MatcherResult(pass, function() {
+        return MatcherResult(pass, function () {
             if (pass) {
                 return (
                     matcherHint(matcherName, undefined, undefined, options) +
@@ -1350,7 +1378,7 @@ var result = (function (global) {
     function toThrowExpectedObject(matcherName, options, thrown, expected) {
         var pass = thrown !== null && thrown.message === expected.message;
 
-        return MatcherResult(pass, function() {
+        return MatcherResult(pass, function () {
             if (pass) {
                 return (
                     matcherHint(matcherName, undefined, undefined, options) +
