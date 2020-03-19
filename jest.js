@@ -93,6 +93,26 @@ var result = (function (exports) {
     }
 
 
+    /*********************************
+     * ThingWorx Utils
+     ********************************/
+
+    function isInfoTable(obj) {
+        return !!(
+            Object.prototype.toString.call(obj) === '[object ThingworxInfoTableObject]'
+            || (obj && obj.dataShape && isArrayLike(obj.rows) && typeof obj.ToJSON === 'function')
+        );
+    }
+
+    function isArrayLike(obj) {
+        return Array.isArray(obj) || isNativeList(obj);
+    }
+
+    function isNativeList(obj) {
+        return Object.prototype.toString.call(obj) === '[object NativeListAdapter]';
+    }
+
+
 
     /*********************************
      * Jasmine Utils
@@ -481,7 +501,7 @@ var result = (function (exports) {
 
     /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/utils.ts#L329 */
     function sparseArrayEquality(a, b) {
-        if (!Array.isArray(a) || !Array.isArray(b)) {
+        if (!isArrayLike(a) || !isArrayLike(b)) {
             return undefined;
         }
 
@@ -517,7 +537,10 @@ var result = (function (exports) {
     function stringify(o) {
         try {
             if (o !== undefined && o !== null) {
-                if (typeof o.ToJSON === 'function') {
+                if (isNativeList(o) && o.length === 0) {
+                    /** an empty native list stringifies as {} */
+                    return JSON.stringify([]);
+                } else if (typeof o.ToJSON === 'function') {
                     /** InfoTable */
                     return o.ToJSON();
                 } else if (typeof o === 'object') {
@@ -596,7 +619,9 @@ var result = (function (exports) {
             return 'undefined';
         } else if (value === null) {
             return 'null';
-        } else if (Array.isArray(value)) {
+        } else if (isInfoTable(value)) {
+            return 'infotable';
+        } else if (isArrayLike(value)) {
             return 'array';
         } else if (typeof value === 'boolean') {
             return 'boolean';
@@ -1342,7 +1367,16 @@ var result = (function (exports) {
                 promise: state.promise
             };
 
-            if (typeof received !== 'string' && (!received || typeof received.length !== 'number')) {
+            var receivedInfoTable = isInfoTable(received);
+
+            var receivedLength;
+            if (receivedInfoTable) {
+                receivedLength = received.rows.length;
+            } else if (received) {
+                receivedLength = received.length;
+            }
+
+            if (typeof received !== 'string' && (!received || typeof receivedLength !== 'number')) {
                 throw new Error(
                     matcherErrorMessage(
                         matcherHint(state.name, undefined, undefined, options),
@@ -1364,7 +1398,7 @@ var result = (function (exports) {
                 );
             }
 
-            var pass = received.length === expected;
+            var pass = receivedLength === expected;
 
             return MatcherResult(pass, function () {
                 return (
@@ -1374,7 +1408,7 @@ var result = (function (exports) {
                     DOUBLE_NEWLINE +
                     (isNot
                         ? ''
-                        : 'Received length ' + received.length) +
+                        : 'Received length ' + receivedLength) +
                     DOUBLE_NEWLINE +
                     'Received ' + getType(received) + ': ' + stringify(received)
                 );
