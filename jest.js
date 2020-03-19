@@ -22,8 +22,10 @@
  * SOFTWARE.
  */
 
-var result = (function (global) {
-    global = global || this;
+
+
+var result = (function (exports) {
+    exports = exports || this;
 
     var DOUBLE_NEWLINE = ' • ';
     var SINGLE_NEWLINE = ' • ';
@@ -93,46 +95,8 @@ var result = (function (global) {
 
 
     /*********************************
-     * Helper Functions
+     * Jasmine Utils
      ********************************/
-
-
-    function stringify(o) {
-        try {
-            if (o !== undefined && o !== null) {
-                if (typeof o.ToJSON === 'function') {
-                    /** InfoTable */
-                    return o.ToJSON();
-                } else if (typeof o === 'object') {
-                    return JSON.stringify(o);
-                }
-            }
-        } catch (err) {
-            //
-        }
-        return '' + o;
-    }
-
-
-    function MatcherResult(pass, messageFunc) {
-        return {
-            pass: pass,
-            message: messageFunc
-        };
-    }
-
-
-    /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/jasmineUtils.ts#L239 */
-    function __hasKey(obj, key) {
-        return Object.prototype.hasOwnProperty.call(obj, key);
-    }
-
-
-    /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/jasmineUtils.ts#L235 */
-    function __hasDefinedKey(obj, key) {
-        return __hasKey(obj, key) && obj[key] !== undefined;
-    }
-
 
     /** https://github.com/facebook/jest/blob/e3f4c65140f08a2ec81e5a8260704c1d201e33c1/packages/expect/src/jasmineUtils.ts#L196 */
     function __keys(obj, hasKey) {
@@ -177,7 +141,19 @@ var result = (function (global) {
 
 
     /** Adapted from https://github.com/facebook/jest/blob/116303baf711df37304986897582eb8078aa24d8/packages/expect/src/jasmineUtils.ts#L65 */
-    function __eq(a, b, aStack, bStack, hasKey) {
+    function __eq(a, b, aStack, bStack, customTesters, hasKey) {
+        // var asymmetricResult = asymmetricMatch(a, b);
+        // if (asymmetricResult !== undefined) {
+        //     return asymmetricResult;
+        // }
+
+        for (var i = 0; i < customTesters.length; i++) {
+            var customTesterResult = customTesters[i](a, b);
+            if (customTesterResult !== undefined) {
+                return customTesterResult;
+            }
+        }
+
         if (a instanceof Error && b instanceof Error) {
             return a.message == b.message;
         }
@@ -252,7 +228,7 @@ var result = (function (global) {
             }
 
             while (size--) {
-                res = __eq(a[size], b[size], aStack, bStack, hasKey);
+                res = __eq(a[size], b[size], aStack, bStack, customTesters, hasKey);
                 if (!res) {
                     return false;
                 }
@@ -272,7 +248,7 @@ var result = (function (global) {
             key = aKeys[size];
 
             // Deep compare each member
-            res = hasKey(b, key) && __eq(a[key], b[key], aStack, bStack, hasKey);
+            res = hasKey(b, key) && __eq(a[key], b[key], aStack, bStack, customTesters, hasKey);
             if (!res) {
                 return false;
             }
@@ -287,12 +263,283 @@ var result = (function (global) {
 
 
     /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/jasmineUtils.ts#L30 */
-    function equals(a, b, strictCheck) {
-        return __eq(a, b, [], [], strictCheck === true ? __hasKey : __hasDefinedKey);
+    function equals(a, b, customTesters, strictCheck) {
+        return __eq(a, b, [], [], customTesters || [], strictCheck === true ? __hasKey : __hasDefinedKey);
     }
-    //    function equals(a, b, customTesters, strictCheck) {
-    //    	return __eq(a, b, [], [], customTesters, strictCheck ? __hasKey : __hasDefinedKey);   
-    //    }
+
+    /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/jasmineUtils.ts#L239 */
+    function __hasKey(obj, key) {
+        return Object.prototype.hasOwnProperty.call(obj, key);
+    }
+
+
+    /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/jasmineUtils.ts#L235 */
+    function __hasDefinedKey(obj, key) {
+        return __hasKey(obj, key) && obj[key] !== undefined;
+    }
+
+
+    /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/jasmineUtils.ts#L243 */
+    function isA(typeName, value) {
+        return Object.prototype.toString.apply(value) === '[object ' + typeName + ']';
+    }
+
+
+    /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/jasmineUtils.ts#L296 */
+    // SENTINEL constants are from https://github.com/facebook/immutable-js
+    var IS_KEYED_SENTINEL = '@@__IMMUTABLE_KEYED__@@';
+    var IS_SET_SENTINEL = '@@__IMMUTABLE_SET__@@';
+    var IS_ORDERED_SENTINEL = '@@__IMMUTABLE_ORDERED__@@';
+
+
+    /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/jasmineUtils.ts#L301 */
+    function isImmutableUnorderedKeyed(maybeKeyed) {
+        return !!(
+            maybeKeyed &&
+            maybeKeyed[IS_KEYED_SENTINEL] &&
+            !maybeKeyed[IS_ORDERED_SENTINEL]
+        );
+    }
+
+
+    /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/jasmineUtils.ts#L309 */
+    function isImmutableUnorderedSet(maybeSet) {
+        return !!(
+            maybeSet &&
+            maybeSet[IS_SET_SENTINEL] &&
+            !maybeSet[IS_ORDERED_SENTINEL]
+        );
+    }
+
+
+    // var IteratorSymbol = Symbol.iterator;
+
+    /**
+     * https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/utils.ts#L148
+     * Symbols don't exist so detect by type
+     * */
+    function hasIterator(obj) {
+        // return !!(object != null && object[IteratorSymbol]);
+        switch (getType(obj)) {
+            case 'map':
+            case 'set':
+            case 'string':
+            case 'array':
+                return true;
+            default:
+                return false;
+        }
+    }
+
+
+    /*********************************
+     * Custom Testers
+     ********************************/
+
+    /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/utils.ts#L152 */
+    function iterableEquality(a, b, aStack, bStack) {
+        if (
+            typeof a !== 'object' ||
+            typeof b !== 'object' ||
+            Array.isArray(a) ||
+            Array.isArray(b) ||
+            !hasIterator(a) ||
+            !hasIterator(b)
+        ) {
+            return undefined;
+        }
+        if (a.constructor !== b.constructor) {
+            return false;
+        }
+        aStack = aStack || [];
+        bStack = bStack || [];
+        var length = aStack.length;
+        while (length--) {
+            // Linear search. Performance is inversely proportional to the number of
+            // unique nested structures.
+            // circular references at same depth are equal
+            // circular reference is not equal to non-circular one
+            if (aStack[length] === a) {
+                return bStack[length] === b;
+            }
+        }
+        aStack.push(a);
+        bStack.push(b);
+
+        function iterableEqualityWithStack(a, b) {
+            iterableEquality(a, b, aStack.slice(), bStack.slice());
+        }
+
+        var allFound, has;
+
+        if (a.size !== undefined) {
+            if (a.size !== b.size) {
+                return false;
+            } else if (isA('Set', a) || isImmutableUnorderedSet(a)) {
+                allFound = true;
+
+                var aValues = a.values();
+                for (var aValueIdx = 0; aValueIdx < aValues.length; aValueIdx++) {
+                    var aValue = aValues[aValueIdx];
+                    if (!b.has(aValue)) {
+                        has = false;
+
+                        var bValues = b.values();
+                        for (var bValueIdx = 0; bValueIdx < bValues.length; bValueIdx++) {
+                            var bValue = bValues[bValueIdx];
+                            var isEqual = equals(aValue, bValue, [iterableEqualityWithStack]);
+                            if (isEqual === true) {
+                                has = true;
+                            }
+                        }
+
+                        if (has === false) {
+                            allFound = false;
+                            break;
+                        }
+                    }
+                }
+                // Remove the first value from the stack of traversed values.
+                aStack.pop();
+                bStack.pop();
+                return allFound;
+            } else if (isA('Map', a) || isImmutableUnorderedKeyed(a)) {
+                allFound = true;
+                var aEntries = a.entries();
+                for (var aEntryIdx = 0; aEntryIdx < aEntries.length; aEntryIdx++) {
+                    var aEntry = aEntries[aEntryIdx];
+
+                    if (
+                        !b.has(aEntry[0]) ||
+                        !equals(aEntry[1], b.get(aEntry[0]), [iterableEqualityWithStack])
+                    ) {
+                        has = false;
+                        var bEntries = b.entries();
+                        for (var bEntryIdx = 0; bEntryIdx < bEntries.length; bEntryIdx++) {
+                            var matchedKey = equals(aEntry[0], bEntry[0], [
+                                iterableEqualityWithStack,
+                            ]);
+
+                            var matchedValue = false;
+                            if (matchedKey === true) {
+                                matchedValue = equals(aEntry[1], bEntry[1], [
+                                    iterableEqualityWithStack,
+                                ]);
+                            }
+                            if (matchedValue === true) {
+                                has = true;
+                            }
+                        }
+
+                        if (has === false) {
+                            allFound = false;
+                            break;
+                        }
+                    }
+                }
+
+                // Remove the first value from the stack of traversed values.
+                aStack.pop();
+                bStack.pop();
+                return allFound;
+            }
+        }
+
+
+        /** Iterator Symbol not supported in version 8.4 */
+        // var bIterator = b[IteratorSymbol]();
+
+        // for (var aValue of a) {
+        //     var nextB = bIterator.next();
+        //     if (
+        //         nextB.done ||
+        //         !equals(aValue, nextB.value, [iterableEqualityWithStack])
+        //     ) {
+        //         return false;
+        //     }
+        // }
+        // if (!bIterator.next().done) {
+        //     return false;
+        // }
+
+        // Remove the first value from the stack of traversed values.
+        aStack.pop();
+        bStack.pop();
+        return true;
+    }
+
+
+    /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/utils.ts#L321 */
+    function typeEquality(a, b) {
+        if (a == null || b == null || a.constructor === b.constructor) { // jshint ignore:line
+            return undefined;
+        }
+
+        return false;
+    }
+
+
+    /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/utils.ts#L329 */
+    function sparseArrayEquality(a, b) {
+        if (!Array.isArray(a) || !Array.isArray(b)) {
+            return undefined;
+        }
+
+        // A sparse array [, , 1] will have keys ["2"] whereas [undefined, undefined, 1] will have keys ["0", "1", "2"]
+        var aKeys = Object.keys(a);
+        var bKeys = Object.keys(b);
+        return (
+            equals(a, b, [iterableEquality, typeEquality], true) && equals(aKeys, bKeys)
+        );
+    }
+
+    /*********************************
+     * Custom Equality Testers
+     ********************************/
+
+    var toStrictEqualTesters = [
+        iterableEquality,
+        typeEquality,
+        sparseArrayEquality
+    ];
+
+    /*********************************
+     * Helper Functions
+     ********************************/
+
+    function uuidv4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function stringify(o) {
+        try {
+            if (o !== undefined && o !== null) {
+                if (typeof o.ToJSON === 'function') {
+                    /** InfoTable */
+                    return o.ToJSON();
+                } else if (typeof o === 'object') {
+                    var undefinedKey = '@@_undefined_@@' + uuidv4();
+                    return JSON.stringify(o, function (k, v) {
+                        return v === undefined ? undefinedKey : v;
+                    }).replace('"' + undefinedKey + '"', 'undefined');
+                }
+            }
+        } catch (err) {
+            //
+        }
+        return '' + o;
+    }
+
+
+    function MatcherResult(pass, messageFunc) {
+        return {
+            pass: pass,
+            message: messageFunc
+        };
+    }
 
 
     /** https://github.com/facebook/jest/blob/e3f4c65140f08a2ec81e5a8260704c1d201e33c1/packages/jest-matcher-utils/src/index.ts#L430 */
@@ -714,7 +961,17 @@ var result = (function (global) {
                         'Expected: not ' + stringify(expected)
                     );
                 } else {
-                    var deepEqualityName = 'toEqual or toStrictEqual';
+                    var expectedType = getType(expected);
+                    var deepEqualityName = null;
+                    if (expectedType !== 'map' && expectedType !== 'set') {
+                        // If deep equality passes when referential identity fails,
+                        // but exclude map and set until review of their equality logic.
+                        if (equals(received, expected, toStrictEqualTesters, true)) {
+                            deepEqualityName = 'toStrictEqual';
+                        } else if (equals(received, expected, [iterableEquality])) {
+                            deepEqualityName = 'toEqual';
+                        }
+                    }
 
                     return (
                         matcherHint(state.name, undefined, undefined, options) +
@@ -1051,7 +1308,7 @@ var result = (function (global) {
                 promise: state.promise
             };
 
-            var pass = equals(received, expected, false);
+            var pass = equals(received, expected, [iterableEquality], false);
 
             return MatcherResult(pass, function () {
                 var receivedStr = stringify(received);
@@ -1289,7 +1546,41 @@ var result = (function (global) {
                     );
                 }
             });
-        }
+        },
+
+        /** https://github.com/facebook/jest/blob/b5c7092687a265e3f4f2ba6f9787e47e8c6b9d5e/packages/expect/src/matchers.ts#L929 */
+        toStrictEqual: function(state, received, expected) {
+            var options = {
+                comment: 'deep equality',
+                isNot: state.isNot,
+                promise: state.promise
+            };
+
+            var pass = equals(received, expected, toStrictEqualTesters, true);
+
+            return MatcherResult(pass, function () {
+                var receivedStr = stringify(received);
+                var expectedStr = stringify(expected);
+
+                if (pass) {
+                    return (
+                        matcherHint(state.name, undefined, undefined, options) +
+                        DOUBLE_NEWLINE +
+                        'Expected: not ' + expectedStr +
+                        (expectedStr !== receivedStr ? DOUBLE_NEWLINE + 'Received: ' + receivedStr : '')
+                    );
+                } else {
+                    return (
+                        matcherHint(state.name, undefined, undefined, options) +
+                        DOUBLE_NEWLINE +
+                        'Received: ' + receivedStr +
+                        DOUBLE_NEWLINE +
+                        'Expected: ' + expectedStr
+                    );
+
+                }
+            });
+        },
     };
 
 
@@ -1558,7 +1849,7 @@ var result = (function (global) {
     }
 
 
-    global.expect = expect;
-    global.describe = describe;
-    global.test = test;
+    exports.expect = expect;
+    exports.describe = describe;
+    exports.test = test;
 }).toString();
