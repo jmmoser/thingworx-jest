@@ -17,7 +17,7 @@ After installation, you may reuse this script in any service on any thing/templa
 eval(Things['JestFramework'].importScript())(this); // jshint ignore:line
 ```
 
-*Note:* I typically create a separate service on each of my things/templates/shapes called *_UNIT_TESTS_* which runs all of the unit tests for the entity's services.
+*Note:* I typically create a separate service on each of my things/templates/shapes called *__UNIT_TESTS__ThingName* which runs all of the unit tests for the entity's services.
 
 Add your unit tests after the snippet:
 ```javascript
