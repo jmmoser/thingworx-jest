@@ -104,7 +104,7 @@ var result = (function (exports) {
     function stringify(o) {
         try {
             if (o !== undefined && o !== null) {
-                o = twx_Normalize(o);
+                o = twx_Sanitize(o);
                 var undefinedKey = '@@_undefined_@@' + uuidv4();
                 return JSON.stringify(o, function (k, v) {
                     return v === undefined ? undefinedKey : v;
@@ -157,7 +157,7 @@ var result = (function (exports) {
     }
 
 
-    function twx_Normalize(obj, level) {
+    function twx_Sanitize(obj, level) {
         if (arguments.length === 1 || level === undefined || level === null || !isNaN(level) || !isFinite(level)) {
             level = 0;
         }
@@ -173,7 +173,7 @@ var result = (function (exports) {
         if (twx_IsNativeList(obj)) {
             res = [];
             for (i = 0; i < obj.length; i++) {
-                res.push(twx_Normalize(obj[i], level + 1));
+                res.push(twx_Sanitize(obj[i], level + 1));
             }
             return res;
         } else if (twx_IsRowObject(obj)) {
@@ -181,7 +181,7 @@ var result = (function (exports) {
             var keys = __keys(obj, __hasKey);
             for (i = 0; i < keys.length; i++) {
                 var key = keys[i];
-                res[key] = twx_Normalize(obj[key], level + 1);
+                res[key] = twx_Sanitize(obj[key], level + 1);
             }
             return res;
         }
@@ -360,8 +360,8 @@ var result = (function (exports) {
 
     /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/jasmineUtils.ts#L30 */
     function equals(a, b, customTesters, strictCheck) {
-        a = twx_Normalize(a);
-        b = twx_Normalize(b);
+        a = twx_Sanitize(a);
+        b = twx_Sanitize(b);
         return __eq(a, b, [], [], customTesters || [], strictCheck === true ? __hasKey : __hasDefinedKey);
     }
 
@@ -1382,7 +1382,7 @@ var result = (function (exports) {
                 promise: state.promise
             };
 
-            // received = twx_Normalize(received);
+            // received = twx_Sanitize(received);
 
             var pass = equals(received, expected, [iterableEquality], false);
 
@@ -1831,7 +1831,7 @@ var result = (function (exports) {
      ********************************/
 
     function expect(actual) {
-        actual = twx_Normalize(actual);
+        actual = twx_Sanitize(actual);
 
         var matcherName;
         var matcher;
