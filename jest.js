@@ -33,7 +33,7 @@ var result = (function (exports) {
 
 
     /*********************************
-     * Polyfills
+     * Polyfills & Helpers
      * 
      * note - these are not true polyfills as ThingWorx version 8.5 uses Rhino 1.7.11 which does not allow modifying global built-in prototype objects
      * https://support.ptc.com/help/thingworx_hc/thingworx_8_hc/en/index.html#page/ThingWorx%2FHelp%2FComposer%2FThings%2FThingServices%2FRhinoJavaScriptEngine.html
@@ -93,23 +93,99 @@ var result = (function (exports) {
     }
 
 
+    function uuidv4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+
+    function stringify(o) {
+        try {
+            if (o !== undefined && o !== null) {
+                o = twx_Normalize(o);
+                var undefinedKey = '@@_undefined_@@' + uuidv4();
+                return JSON.stringify(o, function (k, v) {
+                    return v === undefined ? undefinedKey : v;
+                }).replace('"' + undefinedKey + '"', 'undefined');
+
+                // if (twx_IsNativeList(o) && o.length === 0) {
+                //     /** an empty native list stringifies as {} */
+                //     return JSON.stringify([]);
+                // } else if (typeof o.ToJSON === 'function') {
+                //     /** InfoTable */
+                //     return o.ToJSON();
+                // } else if (typeof o === 'object') {
+                //     var undefinedKey = '@@_undefined_@@' + uuidv4();
+                //     return JSON.stringify(o, function (k, v) {
+                //         return v === undefined ? undefinedKey : v;
+                //     }).replace('"' + undefinedKey + '"', 'undefined');
+                // }
+            }
+        } catch (err) {
+            //
+        }
+        return '' + o;
+    }
+
+
     /*********************************
      * ThingWorx Utils
      ********************************/
 
-    function isInfoTable(obj) {
+    function isArrayLike(obj) {
+        return Array.isArray(obj) || twx_IsNativeList(obj);
+    }
+
+
+    function twx_IsNativeList(obj) {
+        return Object.prototype.toString.call(obj) === '[object NativeListAdapter]';
+    }
+
+
+    function twx_IsInfoTable(obj) {
         return !!(
             Object.prototype.toString.call(obj) === '[object ThingworxInfoTableObject]'
             || (obj && obj.dataShape && isArrayLike(obj.rows) && typeof obj.ToJSON === 'function')
         );
     }
 
-    function isArrayLike(obj) {
-        return Array.isArray(obj) || isNativeList(obj);
+
+    function twx_IsRowObject(obj) {
+        return Object.prototype.toString.call(obj) === '[object ThingworxRowObject]';
     }
 
-    function isNativeList(obj) {
-        return Object.prototype.toString.call(obj) === '[object NativeListAdapter]';
+
+    function twx_Normalize(obj, level) {
+        if (arguments.length === 1 || level === undefined || level === null || !isNaN(level) || !isFinite(level)) {
+            level = 0;
+        }
+        if (level > 10) {
+            return obj;
+        }
+
+        if (obj && typeof obj.ToJSON === 'function') {
+            obj = JSON.parse('' + obj.ToJSON());
+        }
+
+        var i, res;
+        if (twx_IsNativeList(obj)) {
+            res = [];
+            for (i = 0; i < obj.length; i++) {
+                res.push(twx_Normalize(obj[i], level + 1));
+            }
+            return res;
+        } else if (twx_IsRowObject(obj)) {
+            res = {};
+            var keys = __keys(obj, __hasKey);
+            for (i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                res[key] = twx_Normalize(obj[key], level + 1);
+            }
+            return res;
+        }
+        return obj;
     }
 
 
@@ -127,12 +203,12 @@ var result = (function (exports) {
                     keys.push(key);
                 }
             }
-            //            var propertySymbols = Object.getOwnPropertySymbols(o).filter(function(symbol) {
-            //                return Object.getOwnPropertyDescriptor(o, symbol).enumerable;
-            //            });
-            //            for (var propertySymbolsIdx = 0; propertySymbolsIdx < propertySymbols.length; propertySymbolsIdx++) {
-            //             	keys.push(propertySymbols[propertySymbolsIdx]);
-            //            }
+            // var propertySymbols = Object.getOwnPropertySymbols(o).filter(function(symbol) {
+            //     return Object.getOwnPropertyDescriptor(o, symbol).enumerable;
+            // });
+            // for (var propertySymbolsIdx = 0; propertySymbolsIdx < propertySymbols.length; propertySymbolsIdx++) {
+            //     keys.push(propertySymbols[propertySymbolsIdx]);
+            // }
             return keys;
         }
 
@@ -284,6 +360,8 @@ var result = (function (exports) {
 
     /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/jasmineUtils.ts#L30 */
     function equals(a, b, customTesters, strictCheck) {
+        a = twx_Normalize(a);
+        b = twx_Normalize(b);
         return __eq(a, b, [], [], customTesters || [], strictCheck === true ? __hasKey : __hasDefinedKey);
     }
 
@@ -527,35 +605,6 @@ var result = (function (exports) {
      * Helper Functions
      ********************************/
 
-    function uuidv4() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
-    function stringify(o) {
-        try {
-            if (o !== undefined && o !== null) {
-                if (isNativeList(o) && o.length === 0) {
-                    /** an empty native list stringifies as {} */
-                    return JSON.stringify([]);
-                } else if (typeof o.ToJSON === 'function') {
-                    /** InfoTable */
-                    return o.ToJSON();
-                } else if (typeof o === 'object') {
-                    var undefinedKey = '@@_undefined_@@' + uuidv4();
-                    return JSON.stringify(o, function (k, v) {
-                        return v === undefined ? undefinedKey : v;
-                    }).replace('"' + undefinedKey + '"', 'undefined');
-                }
-            }
-        } catch (err) {
-            //
-        }
-        return '' + o;
-    }
-
 
     function MatcherResult(pass, messageFunc) {
         return {
@@ -619,7 +668,7 @@ var result = (function (exports) {
             return 'undefined';
         } else if (value === null) {
             return 'null';
-        } else if (isInfoTable(value)) {
+        } else if (twx_IsInfoTable(value)) {
             return 'infotable';
         } else if (isArrayLike(value)) {
             return 'array';
@@ -1333,6 +1382,8 @@ var result = (function (exports) {
                 promise: state.promise
             };
 
+            // received = twx_Normalize(received);
+
             var pass = equals(received, expected, [iterableEquality], false);
 
             return MatcherResult(pass, function () {
@@ -1367,7 +1418,7 @@ var result = (function (exports) {
                 promise: state.promise
             };
 
-            var receivedInfoTable = isInfoTable(received);
+            var receivedInfoTable = twx_IsInfoTable(received);
 
             var receivedLength;
             if (receivedInfoTable) {
@@ -1780,6 +1831,8 @@ var result = (function (exports) {
      ********************************/
 
     function expect(actual) {
+        actual = twx_Normalize(actual);
+
         var matcherName;
         var matcher;
 
