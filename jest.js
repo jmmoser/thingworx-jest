@@ -147,7 +147,7 @@ var result = (function (exports) {
     function twx_IsInfoTable(obj) {
         return !!(
             Object.prototype.toString.call(obj) === '[object ThingworxInfoTableObject]'
-            || (obj && obj.dataShape && isArrayLike(obj.rows) && typeof obj.ToJSON === 'function')
+            || (obj && obj.dataShape && isArrayLike(obj.rows))
         );
     }
 
