@@ -25,10 +25,131 @@
 
 
 var result = (function (exports) {
+    var unitTestResult = {
+        "rows": [],
+        "dataShape": {
+            "fieldDefinitions": {
+                "duration": {
+                    "name": "duration",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "INTEGER",
+                    "ordinal": 7
+                },
+                "test": {
+                    "name": "test",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "STRING",
+                    "ordinal": 3
+                },
+                "pass": {
+                    "name": "pass",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "BOOLEAN",
+                    "ordinal": 6
+                },
+                "entityName": {
+                    "name": "entityName",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "STRING",
+                    "ordinal": 4
+                },
+                "description": {
+                    "name": "description",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "STRING",
+                    "ordinal": 2
+                },
+                "id": {
+                    "name": "id",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "STRING",
+                    "ordinal": 1
+                },
+                "error": {
+                    "name": "error",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "STRING",
+                    "ordinal": 8
+                },
+                "serviceName": {
+                    "name": "serviceName",
+                    "aspects": {
+                        "isPrimaryKey": false
+                    },
+                    "description": "",
+                    "baseType": "STRING",
+                    "ordinal": 5
+                }
+            }
+        }
+    };
+    // var result = {
+    //     dataShape: {
+    //         fieldDefinitions: {
+    //             id: {
+    //                 name: "id",
+    //                 baseType: "STRING"
+    //             },
+    //             description: {
+    //                 name: "description",
+    //                 baseType: "STRING"
+    //             },
+    //             test: {
+    //                 name: "test",
+    //                 baseType: "STRING"
+    //             },
+    //             entityName: {
+    //                 name: "entityName",
+    //                 baseType: "STRING"
+    //             },
+    //             serviceName: {
+    //                 name: "serviceName",
+    //                 baseType: "STRING"
+    //             },
+    //             pass: {
+    //                 name: "pass",
+    //                 baseType: "BOOLEAN"
+    //             },
+    //             duration: {
+    //                 name: "duration",
+    //                 baseType: "INTEGER"
+    //             },
+    //             error: {
+    //                 name: "error",
+    //                 baseType: "STRING"
+    //             }
+    //         }
+    //     },
+    //     rows: []
+    // };
+
     exports = exports || this;
 
-    var DOUBLE_NEWLINE = ' • ';
-    var SINGLE_NEWLINE = ' • ';
+    // ⁘ ※ † ‡ • ‖ ⁝ ⁕ ‣ ‧
+    // var DOUBLE_NEWLINE = ' ‹|› ';
+    var DOUBLE_NEWLINE = ' ‣ ';
+    var SINGLE_NEWLINE = ' ‧ ';
     var DID_NOT_THROW = 'Received function did not throw';
 
 
@@ -136,6 +257,28 @@ var result = (function (exports) {
 
     function isArrayLike(obj) {
         return Array.isArray(obj) || twx_IsNativeList(obj);
+    }
+
+
+    function twx_IsService(obj) {
+        return typeof obj === 'function' && (obj.toString === null || obj.call === null);
+    }
+
+
+    function twx_GetServiceInfo(obj) {
+        if (twx_IsService(obj)) {
+            try {
+                obj(function () { });
+            } catch (err) {
+                var matches = /(?:\[)([$A-Z_][0-9A-Z_$]*)(?:\])(?: on )([^\s]+)/gmi.exec(err.message);
+                if (matches && matches.length === 3) {
+                    return {
+                        entityName: matches[2],
+                        serviceName: matches[1]
+                    };
+                }
+            }
+        }
     }
 
 
@@ -808,6 +951,8 @@ var result = (function (exports) {
 
     /** https://github.com/facebook/jest/blob/0fd5e3cdd80a866623f1f0cf2385fef38015d51f/packages/expect/src/utils.ts#L51 */
     function getPath(object, propertyPath) {
+        object = twx_Sanitize(object);
+
         if (!Array.isArray(propertyPath)) {
             propertyPath = propertyPath.split('.');
         }
@@ -1382,8 +1527,6 @@ var result = (function (exports) {
                 promise: state.promise
             };
 
-            // received = twx_Sanitize(received);
-
             var pass = equals(received, expected, [iterableEquality], false);
 
             return MatcherResult(pass, function () {
@@ -1887,6 +2030,10 @@ var result = (function (exports) {
         return expectation;
     }
 
+    var describeDescription = '';
+    var describeEntityName = '';
+    var describeServiceName = '';
+
     /** https://github.com/facebook/jest/blob/438118a8024cd76852affa7198936111df2f7cc0/packages/jest-jasmine2/src/jasmine/Env.ts#L368 */
     function describe(description, specDefinitions) {
         if (specDefinitions === undefined) {
@@ -1899,12 +2046,28 @@ var result = (function (exports) {
                 'Invalid second argument, ' + specDefinitions + '. It must be a callback function.'
             );
         }
-        if (specDefinitions.length > 0) {
-            throw new Error('describe callback function does not expect any arguments');
+        // if (specDefinitions.length > 0) {
+        //     throw new Error('describe callback function does not expect any arguments');
+        // }
+
+        var ctx = {};
+
+        if (twx_IsService(description)) {
+            ctx.service = description;
+            var serviceInfo = twx_GetServiceInfo(description);
+            if (serviceInfo) {
+                if (serviceInfo.entityName && serviceInfo.serviceName) {
+                    describeEntityName = serviceInfo.entityName;
+                    describeServiceName = serviceInfo.serviceName;
+                    description = serviceInfo.entityName + '.' + serviceInfo.serviceName + '()';
+                }
+            }
         }
 
+        describeDescription = description;
+
         try {
-            specDefinitions();
+            specDefinitions(ctx);
         } catch (err) {
             throw new Error(description + ' › ' + err.message);
         }
@@ -1927,16 +2090,41 @@ var result = (function (exports) {
                 'Invalid second argument, ' + fn + '. It must be a callback function.'
             );
         }
+        
+        var error;
+        var start = Date.now();
 
         try {
             fn();
         } catch (err) {
-            throw new Error(description + ': ' + err.message);
+            error = err;
+            // throw new Error(description + ': ' + err.message);
         }
+
+        var end = Date.now();
+
+        unitTestResult.rows.push({
+            // id: uuidv4(),
+            id: '' + unitTestResult.rows.length,
+            description: describeDescription,
+            test: description,
+            entityName: describeEntityName,
+            serviceName: describeServiceName,
+            duration: end - start,
+            pass: error === undefined,
+            error: error ? error.message : ''
+        });
+
+        // try {
+        //     fn();
+        // } catch (err) {
+        //     throw new Error(description + ': ' + err.message);
+        // }
     }
 
 
     exports.expect = expect;
     exports.describe = describe;
     exports.test = test;
+    exports.result = unitTestResult;
 }).toString();
