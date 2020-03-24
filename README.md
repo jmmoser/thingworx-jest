@@ -11,11 +11,12 @@
 
 ### Usage
 After installation, you may reuse this script in any service on any thing/template/shape by including the following snippet at the beginning of the service:
-
 ```javascript
 /** import { expect, describe, test } */
 eval(Things['JestFramework'].importScript())(this); // jshint ignore:line
 ```
+
+Make sure to set the output of the service to INFOTABLE.
 
 *Note:* I typically create a separate service on each of my things/templates/shapes called *__UNIT_TESTS__ThingName* which runs all of the unit tests for the entity's services.
 
@@ -29,7 +30,17 @@ describe('Echo service', function() {
 });
 ```
 
-Then execute the service. If any test fails, an error will be thrown and a descriptive error message will be visible in the output console.
+The first argument passed to describe can also be a service function:
+```javascript
+describe(me.EchoService, function(ctx) {
+  test('Normal input', function() {
+    var input = { a: 1 };
+    expect(ctx.service(input)).toEqual(input);
+  });
+});
+```
+
+Then execute the service. The result is an infotable with unit test results.
 
 
 ### How This Works
