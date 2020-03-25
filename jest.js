@@ -104,45 +104,6 @@ var result = (function (exports) {
             }
         }
     };
-    // var result = {
-    //     dataShape: {
-    //         fieldDefinitions: {
-    //             id: {
-    //                 name: "id",
-    //                 baseType: "STRING"
-    //             },
-    //             description: {
-    //                 name: "description",
-    //                 baseType: "STRING"
-    //             },
-    //             test: {
-    //                 name: "test",
-    //                 baseType: "STRING"
-    //             },
-    //             entityName: {
-    //                 name: "entityName",
-    //                 baseType: "STRING"
-    //             },
-    //             serviceName: {
-    //                 name: "serviceName",
-    //                 baseType: "STRING"
-    //             },
-    //             pass: {
-    //                 name: "pass",
-    //                 baseType: "BOOLEAN"
-    //             },
-    //             duration: {
-    //                 name: "duration",
-    //                 baseType: "INTEGER"
-    //             },
-    //             error: {
-    //                 name: "error",
-    //                 baseType: "STRING"
-    //             }
-    //         }
-    //     },
-    //     rows: []
-    // };
 
     exports = exports || this;
 
@@ -860,6 +821,29 @@ var result = (function (exports) {
             default:
                 return value instanceof Error;
         }
+    }
+
+
+    /** https://github.com/facebook/jest/blob/cd98198c9397d8b69c55155d7b224d62ef117a90/packages/expect/src/toThrowMatchers.ts#L54 */
+    function getThrown(e) {
+        var hasMessage =
+            e !== null && e !== undefined && typeof e.message === 'string';
+
+        if (hasMessage && typeof e.name === 'string' && typeof e.stack === 'string') {
+            return {
+                hasMessage: hasMessage,
+                isError: true,
+                message: e.message,
+                value: e,
+            };
+        }
+
+        return {
+            hasMessage: hasMessage,
+            isError: false,
+            message: hasMessage ? e.message : String(e),
+            value: e,
+        };
     }
 
 
@@ -1812,6 +1796,132 @@ var result = (function (exports) {
     };
 
 
+    // function package(func) {
+    //     var pkg = {};
+
+    //     function register(fn) {
+    //         if (typeof fn === 'function') {
+    //             pkg[fn.name] = fn
+    //         }
+    //         return fn;
+    //     }
+
+    //     func(register);
+
+    //     return pkg;
+    // }
+
+    
+
+    /**
+     * Printers
+     */
+
+    function INVERTED_COLOR(val) {
+        return '‹‹' + val + '››';
+    }
+
+    /** https://github.com/facebook/jest/blob/cd98198c9397d8b69c55155d7b224d62ef117a90/packages/expect/src/print.ts#L19 */
+    function printSubstring(val) {
+        return val.replace(/"|\\/g, '\\$&');
+    }
+
+    /** https://github.com/facebook/jest/blob/cd98198c9397d8b69c55155d7b224d62ef117a90/packages/expect/src/print.ts#L21 */
+    function printReceivedStringContainExpectedSubstring(received, start, length) {
+        return (
+            '"' +
+            printSubstring(received.slice(0, start)) +
+            INVERTED_COLOR(printSubstring(received.slice(start, start + length))) +
+            printSubstring(received.slice(start + length)) +
+            '"'
+        );
+    }
+
+    /** https://github.com/facebook/jest/blob/cd98198c9397d8b69c55155d7b224d62ef117a90/packages/expect/src/print.ts#L34 */
+    function printReceivedStringContainExpectedResult(received, result) {
+        return (
+            result === null
+                ? printReceived(received)
+                : printReceivedStringContainExpectedSubstring(
+                    received,
+                    result.index,
+                    result[0].index
+                )
+
+        );
+    }
+
+
+    function printReceived(obj) {
+        return stringify(obj);
+        // return replaceTrailingSpaces(stringify(obj));
+    }
+
+    function printExpected(obj) {
+        return stringify(obj);
+        // return replaceTrailingSpaces(stringify(obj));
+    }
+
+
+    /**
+     * Throwers
+     */
+
+    /** https://github.com/facebook/jest/blob/cd98198c9397d8b69c55155d7b224d62ef117a90/packages/expect/src/toThrowMatchers.ts#L370 */
+    function formatExpectedThrown(label, expected) {
+        return label + printExpected(expected) + SINGLE_NEWLINE;
+    }
+
+    /** https://github.com/facebook/jest/blob/cd98198c9397d8b69c55155d7b224d62ef117a90/packages/expect/src/toThrowMatchers.ts#L373 */
+    function formatReceivedThrown(label, thrown, key, expected) {
+        if (thrown === null) {
+            return '';
+        }
+
+        if (key === 'message') {
+            var message = thrown.message;
+
+            if (typeof expected === 'string') {
+                var index = message.indexOf(expected);
+                if (index !== -1) {
+                    return (
+                        label +
+                        printReceivedStringContainExpectedSubstring(
+                            message,
+                            index,
+                            expected.length,
+                        ) +
+                        SINGLE_NEWLINE
+                    );
+                }
+            } else if (expected instanceof RegExp) {
+                return (
+                    label +
+                    printReceivedStringContainExpectedResult(
+                        message,
+                        typeof expected.exec === 'function' ? expected.exec(message) : null,
+                    ) +
+                    SINGLE_NEWLINE
+                );
+            }
+
+            return label + printReceived(message) + SINGLE_NEWLINE;
+        }
+
+        if (key === 'name') {
+            return thrown.isError
+                ? label + printReceived(thrown.value.name) + SINGLE_NEWLINE
+                : '';
+        }
+
+        if (key === 'value') {
+            return thrown.isError ? '' : label + printReceived(thrown.value) + SINGLE_NEWLINE;
+        }
+
+        return '';
+    }
+
+
     /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/toThrowMatchers.ts#L340 */
     function toThrowExpectedNotDefined(matcherName, options, thrown) {
         var pass = thrown !== null;
@@ -1853,12 +1963,23 @@ var result = (function (exports) {
                     matcherHint(matcherName, undefined, undefined, options) +
                     DOUBLE_NEWLINE +
                     'Expected substring: ' + expected +
+                    DOUBLE_NEWLINE +
                     (thrown === null
-                        ? DOUBLE_NEWLINE + DID_NOT_THROW :
+                        ? DID_NOT_THROW :
                         thrown.message ?
                             'Received message: ' + thrown.message :
                             'Received value:' + thrown.value || thrown)
                 );
+                // return (
+                //     matcherHint(matcherName, undefined, undefined, options) +
+                //     DOUBLE_NEWLINE +
+                //     'Expected substring: ' + expected +
+                //     (thrown === null
+                //         ? DOUBLE_NEWLINE + DID_NOT_THROW :
+                //         thrown.message ?
+                //             'Received message: ' + thrown.message :
+                //             'Received value:' + thrown.value || thrown)
+                // );
             }
         });
     }
@@ -1903,7 +2024,7 @@ var result = (function (exports) {
                     matcherHint(matcherName, undefined, undefined, options) +
                     DOUBLE_NEWLINE +
                     'Expected message: not ' + expected.message +
-                    (!!thrown.message ?
+                    (thrown !== null && thrown.hasMessage ?
                         'Received message: ' + thrown.message :
                         'Received value: ' + thrown.value || thrown)
                 );
@@ -1912,10 +2033,14 @@ var result = (function (exports) {
                     matcherHint(matcherName, undefined, undefined, options) +
                     DOUBLE_NEWLINE +
                     (thrown === null
-                        ? 'Expected message: ' + expected.message + DOUBLE_NEWLINE + DID_NOT_THROW
-                        : !!thrown.message
-                            ? 'Received message: ' + thrown.message
-                            : 'Received value:' + thrown.value || thrown)
+                        ? formatExpectedThrown('Expected message: ', expected.message) + SINGLE_NEWLINE + DID_NOT_THROW
+                        : thrown.hasMessage
+                            // ? 'Received message: ' + thrown.message
+                            ? formatExpectedThrown('Expected message: ', expected.message) +
+                              formatReceivedThrown('Received message: ', thrown, 'message')
+                            : formatExpectedThrown('Expected message: ', expected.message) +
+                              formatReceivedThrown('Received value:   ', thrown, 'value')
+                    )
                 );
             }
         });
@@ -1941,11 +2066,11 @@ var result = (function (exports) {
                 );
             }
 
-            var thrown;
+            var thrown = null;
             try {
                 received();
             } catch (err) {
-                thrown = err;
+                thrown = getThrown(err);
             }
 
             if (expected === undefined) {
@@ -2098,13 +2223,11 @@ var result = (function (exports) {
             fn();
         } catch (err) {
             error = err;
-            // throw new Error(description + ': ' + err.message);
         }
 
         var end = Date.now();
 
         unitTestResult.rows.push({
-            // id: uuidv4(),
             id: '' + unitTestResult.rows.length,
             description: describeDescription,
             test: description,
