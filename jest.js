@@ -898,7 +898,7 @@ var result = (function (exports) {
             hint +
                 DOUBLE_NEWLINE +
                 'Matcher error: ' + generic +
-                typeof specific === 'string' ? DOUBLE_NEWLINE + specific : ''
+                (typeof specific === 'string' ? DOUBLE_NEWLINE + specific : '')
         );
     }
 
