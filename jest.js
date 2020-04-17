@@ -231,9 +231,18 @@ var result = (function (exports) {
             try {
                 obj(function () { });
             } catch (err) {
+                var invalidMatches = /(?:cannot find function )([$A-Z_][0-9A-Z_$]*)(?: in object )([^\s]+)(?:\.)/gmi.exec(err.message);
+                if (invalidMatches && invalidMatches.length === 3) {
+                    return {
+                        valid: false,
+                        entityName: invalidMatches[2],
+                        serviceName: invalidMatches[1]
+                    };
+                }
                 var matches = /(?:\[)([$A-Z_][0-9A-Z_$]*)(?:\])(?: on )([^\s]+)/gmi.exec(err.message);
                 if (matches && matches.length === 3) {
                     return {
+                        valid: true,
                         entityName: matches[2],
                         serviceName: matches[1]
                     };
@@ -2176,6 +2185,9 @@ var result = (function (exports) {
         // }
 
         var ctx = {};
+
+        describeEntityName = '';
+        describeServiceName = '';
 
         if (twx_IsService(description)) {
             ctx.service = description;
