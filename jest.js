@@ -191,19 +191,6 @@ var result = (function (exports) {
                 return JSON.stringify(o, function (k, v) {
                     return v === undefined ? undefinedKey : v;
                 }).replace('"' + undefinedKey + '"', 'undefined');
-
-                // if (twx_IsNativeList(o) && o.length === 0) {
-                //     /** an empty native list stringifies as {} */
-                //     return JSON.stringify([]);
-                // } else if (typeof o.ToJSON === 'function') {
-                //     /** InfoTable */
-                //     return o.ToJSON();
-                // } else if (typeof o === 'object') {
-                //     var undefinedKey = '@@_undefined_@@' + uuidv4();
-                //     return JSON.stringify(o, function (k, v) {
-                //         return v === undefined ? undefinedKey : v;
-                //     }).replace('"' + undefinedKey + '"', 'undefined');
-                // }
             }
         } catch (err) {
             //
@@ -265,9 +252,9 @@ var result = (function (exports) {
     }
 
 
-    function twx_IsRowObject(obj) {
-        return Object.prototype.toString.call(obj) === '[object ThingworxRowObject]';
-    }
+    // function twx_IsRowObject(obj) {
+    //     return Object.prototype.toString.call(obj) === '[object ThingworxRowObject]';
+    // }
 
 
     function twx_Sanitize(obj, level) {
@@ -283,13 +270,14 @@ var result = (function (exports) {
         }
 
         var i, res;
-        if (twx_IsNativeList(obj)) {
+        if (twx_IsNativeList(obj) || Array.isArray(obj)) {
             res = [];
             for (i = 0; i < obj.length; i++) {
                 res.push(twx_Sanitize(obj[i], level + 1));
             }
             return res;
-        } else if (twx_IsRowObject(obj)) {
+        } else if (typeof obj === 'object') {
+        // } else if (twx_IsRowObject(obj)) {
             res = {};
             var keys = __keys(obj, __hasKey);
             for (i = 0; i < keys.length; i++) {
