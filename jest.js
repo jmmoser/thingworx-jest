@@ -276,7 +276,7 @@ var result = (function (exports) {
                 res.push(twx_Sanitize(obj[i], level + 1));
             }
             return res;
-        } else if (typeof obj === 'object') {
+        } else if (obj && typeof obj === 'object') {
         // } else if (twx_IsRowObject(obj)) {
             res = {};
             var keys = __keys(obj, __hasKey);
