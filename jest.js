@@ -277,7 +277,6 @@ var result = (function (exports) {
             }
             return res;
         } else if (obj && typeof obj === 'object') {
-        // } else if (twx_IsRowObject(obj)) {
             res = {};
             var keys = __keys(obj, __hasKey);
             for (i = 0; i < keys.length; i++) {
