@@ -881,15 +881,45 @@ var result = (function (exports) {
         return hasType + name + ' has value: ' + (typeof printerFunc === 'function' ? printerFunc(value) : stringify(value));
     }
 
+    /** https://github.com/facebook/jest/blob/068ec04cc025596f01f79a0c472d9cc6553a72ca/packages/jest-matcher-utils/src/index.ts#L484 */
+    function getLabelPrinter () {
+        var maxLength = 0;
+        for (var i = 0; i < arguments.length; i++) {
+            var length = arguments[i].length;
+            maxLength = length > maxLength ? length : maxLength;
+        }
+        return function(string) {
+            return string + ': ' + ' '.repeat(maxLength - string.length);
+        };
+    }
+
+
+    // The serialized array is compatible with pretty-format package min option.
+    // However, items have default stringify depth (instead of depth - 1)
+    // so expected item looks consistent by itself and enclosed in the array.
+    /** https://github.com/facebook/jest/blob/068ec04cc025596f01f79a0c472d9cc6553a72ca/packages/expect/src/print.ts#L49 */
+    function printReceivedArrayContainExpectedItem (received, index) {
+        return (
+            '[' +
+            received
+                .map(function(item, i) {
+                    var stringified = stringify(item);
+                    return i === index ? INVERTED_COLOR(stringified) : stringified;
+                })
+                .join(', ') +
+            ']'
+        );
+    }
+
 
     // /** https://github.com/facebook/jest/blob/e3f4c65140f08a2ec81e5a8260704c1d201e33c1/packages/jest-matcher-utils/src/index.ts#L116 */
-    // function printValue(value) {
+    // function printValue (value) {
     //     // TODO
     // }
 
 
     /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/jest-matcher-utils/src/index.ts#L418 */
-    function matcherErrorMessage(hint, generic, specific) {
+    function matcherErrorMessage (hint, generic, specific) {
         return (
             hint +
                 DOUBLE_NEWLINE +
@@ -1494,10 +1524,55 @@ var result = (function (exports) {
         //     // TODO
         // },
 
-        // /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/matchers.ts#L538 */
-        // toContainEqual: function (state, received, expected) {
-        //     // TODO
-        // },
+        /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/matchers.ts#L538 */
+        toContainEqual: function (state, received, expected) {
+            var isNot = state.isNot;
+            var options = {
+                comment: 'deep equality',
+                isNot: isNot,
+                promise: state.promise,
+            };
+
+            if (received == null) {
+                throw new Error(
+                    matcherErrorMessage(
+                        matcherHint(state.name, undefined, undefined, options),
+                        'received value must not be null nor undefined',
+                        printWithType('Received', received, printReceived),
+                    )
+                );
+            }
+
+            var receivedInfoTable = twx_IsInfoTable(received);
+
+            received = twx_Sanitize(received);
+
+            if (receivedInfoTable) {
+                received = received.rows;
+            }
+
+            var index = Array.from(received).findIndex(function (item) {
+                return equals(item, expected, [iterableEquality]);
+            });
+            var pass = index !== -1;
+
+            return MatcherResult(pass, function () {
+                var labelExpected = 'Expected value';
+                var labelReceived = 'Received ' + getType(received);
+                var printLabel = getLabelPrinter(labelExpected, labelReceived);
+
+                return (
+                    matcherHint(state.name, undefined, undefined, options) +
+                    DOUBLE_NEWLINE +
+                    printLabel(labelExpected) + (isNot ? 'not ' : '') + printExpected(expected) + SINGLE_NEWLINE +
+                    printLabel(labelReceived) + (isNot ? '    ' : '') + (
+                        isNot && Array.isArray(received)
+                            ? printReceivedArrayContainExpectedItem(received, index)
+                            : printReceived(received)
+                    )
+                );
+            });
+        },
 
         /** https://github.com/facebook/jest/blob/2f793b8836e7f900887e6a403f1ba9b3005fac25/packages/expect/src/matchers.ts#L588 */
         toEqual: function (state, received, expected) {

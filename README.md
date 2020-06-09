@@ -30,18 +30,11 @@ describe('Echo service', function() {
 });
 ```
 
-The first argument passed to describe can also be a service function:
-```javascript
-describe(me.EchoService, function(ctx) {
-  test('Normal input', function() {
-    var input = { a: 1 };
-    expect(ctx.service(input)).toEqual(input);
-  });
-});
-```
-
 Then execute the service. The result is an infotable with unit test results.
 
 
 ### How This Works
 ThingWorx does not allow passing functions as arguments to services so all javascript functions need to be defined inside of the service.  To emulate exporting a script, the entire framework is placed inside of a function and [Function.prototype.toString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/toString) is utillized to get the source code for the function. To emulate importing a script, [eval()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval) is utilized to evaluate the source code returned inside of the calling service.  The export of the script source code could be avoided by placing the source string directly in a property and then imported by getting the value of the property instead of calling the service.
+
+### Todo
+- toContain
