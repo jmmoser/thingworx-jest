@@ -1172,7 +1172,7 @@ var result = (function (exports) {
      * Matchers
      ********************************/
 
-    var ALL_MATCHERS = {
+    var MATCHERS = {
         /** https://github.com/facebook/jest/blob/e3f4c65140f08a2ec81e5a8260704c1d201e33c1/packages/expect/src/matchers.ts#L72 */
         toBe: function (state, received, expected) {
             var options = {
@@ -2181,6 +2181,8 @@ var result = (function (exports) {
             //            resolves: { not: {} },
         };
 
+        var ALL_MATCHERS = Object.assign({}, MATCHERS, THROWING_MATCHERS);
+
         for (matcherName in ALL_MATCHERS) {
             matcher = ALL_MATCHERS[matcherName];
             // var promiseMatcher = getPromiseMatcher(name, matcher) || matcher;
@@ -2218,10 +2220,10 @@ var result = (function (exports) {
             // );
         }
 
-        for (matcherName in THROWING_MATCHERS) {
-            matcher = THROWING_MATCHERS[matcherName];
-            expectation[matcherName] = makeThrowingMatcher(matcherName, matcher, false, actual);
-        }
+        // for (matcherName in THROWING_MATCHERS) {
+        //     matcher = THROWING_MATCHERS[matcherName];
+        //     expectation[matcherName] = makeThrowingMatcher(matcherName, matcher, false, actual);
+        // }
 
         return expectation;
     }
